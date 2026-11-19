@@ -1,18 +1,17 @@
 # Lista de regalos
 
-Web estática de una sola página (`index.html`) con mi lista de deseos de Navidad.
+Web estática de una sola página. Los regalos están en `wishes.json`.
 
-## Cómo añadir un regalo
+## Añadir regalos desde la web
 
-Abre `index.html` y añade una entrada al bloque `WISHES`, dentro de `DATOS`:
+1. Abre `https://albertoarchive.github.io/lista/#editar`.
+2. La primera vez, crea un token de GitHub (la propia página explica cómo) y pégalo. Se guarda solo en tu navegador.
+3. Pega el enlace del producto, pulsa *Buscar datos*, revisa nombre, precio y foto, y pulsa *Añadir a la lista*.
 
-```js
-{ n:'Nombre', p:25, l:'https://enlace-al-producto', o:'Nota', img:'fotos/foto.jpg' }
-```
+Cada cambio se guarda como un commit en este repo. En 1–2 minutos lo ve todo el mundo.
 
-Las fotos pueden ser un enlace o un archivo subido a la carpeta `fotos/`.
-Si una foto no carga, se ve un cuadro de color con la inicial.
+Quien abra la web sin `#editar` solo ve la lista.
 
-## Publicar
+## Editar a mano
 
-Activa GitHub Pages en *Settings → Pages* (rama `main`, carpeta raíz).
+También puedes editar `wishes.json` directamente en GitHub. Campos: `n` nombre, `p` precio, `po` precio original (tachado), `l` enlace, `o` nota, `img` foto, `img2` segunda foto.

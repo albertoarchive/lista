@@ -17,6 +17,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',sys
 h1{font-size:clamp(48px,10vw,120px);line-height:.92;font-weight:800;letter-spacing:-.035em;max-width:900px}
 h1 span{color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}
+.cell{display:flex;flex-direction:column;gap:8px}
 .card{display:flex;flex-direction:column;background:#fff;border:2px solid var(--ink);border-radius:24px;padding:14px;gap:14px;color:inherit;text-decoration:none;transition:transform .15s}
 a.card:hover{transform:translateY(-4px)}
 .photo{position:relative;aspect-ratio:1/1;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:84px;font-weight:800;color:rgba(0,0,0,.18)}
@@ -29,62 +30,246 @@ a.card:hover{transform:translateY(-4px)}
 .old{font-weight:400;font-size:15px;color:var(--muted)}
 .note{font-size:14px;color:#6b6860;padding:0 6px 6px;margin-top:-8px}
 footer{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+/* modo editar */
+#admin{display:none;background:#fff;border:2px solid var(--ink);border-radius:24px;padding:22px;flex-direction:column;gap:14px}
+.edit #admin{display:flex}
+#admin h2{font-size:22px}
+#admin p,#admin li{font-size:14px;color:#55524a}
+#admin ol{padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 160px}
+input{font:inherit;font-size:15px;border:1.5px solid var(--ink);border-radius:10px;padding:9px 12px;background:#fff;color:var(--ink);min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b6860}
+button{font:inherit;font-weight:600;font-size:14px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:10px;padding:9px 16px;cursor:pointer}
+button.alt{background:transparent;color:var(--ink)}
+button:disabled{opacity:.5;cursor:wait}
+.adm{display:none;gap:8px}
+.edit .adm{display:flex}
+.adm button{padding:6px 12px;font-size:13px}
+#status{font-size:14px;min-height:20px}
+.hide{display:none!important}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap">
   <div class="top"><span class="pill" id="year"></span><span id="owner"></span></div>
   <h1>Mi lista de <span>regalos</span></h1>
+
+  <section id="admin">
+    <h2>Modo editar</h2>
+    <div id="login" class="hide">
+      <p>Para añadir regalos desde aquí necesitas un token de GitHub. Se guarda solo en este navegador.</p>
+      <ol>
+        <li>Abre <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>.</li>
+        <li>En <b>Repository access</b> elige <i>Only select repositories</i> y marca <b>lista</b>.</li>
+        <li>En <b>Permissions → Repository permissions</b> pon <b>Contents: Read and write</b>.</li>
+        <li>Pulsa <i>Generate token</i>, copia el token y pégalo aquí.</li>
+      </ol>
+      <div class="row"><input id="tok" type="password" placeholder="github_pat_…" autocomplete="off"><button id="tokOk">Guardar token</button></div>
+    </div>
+    <div id="form" class="hide">
+      <label>Pega el enlace del producto
+        <div class="row"><input id="fl" type="url" placeholder="https://…"><button id="find">Buscar datos</button></div>
+      </label>
+      <div class="row">
+        <label>Nombre<input id="fn"></label>
+        <label>Precio (€)<input id="fp" inputmode="decimal"></label>
+        <label>Precio original (€)<input id="fo" inputmode="decimal" placeholder="si está de oferta"></label>
+      </div>
+      <div class="row">
+        <label>Foto (enlace o ruta)<input id="fi"></label>
+        <label>…o súbela<input id="ff" type="file" accept="image/*"></label>
+      </div>
+      <div class="row" style="flex-wrap:nowrap">
+        <button id="save">Añadir a la lista</button>
+        <button id="cancel" class="alt hide">Cancelar edición</button>
+        <button id="logout" class="alt" style="margin-left:auto">Cerrar sesión</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </section>
+
   <main class="grid" id="grid"></main>
   <footer><span>Lista de deseos</span><span>cameno</span></footer>
 </div>
 
 <script>
-// ───────── DATOS: edita solo este bloque ─────────
-// n: nombre · p: precio actual en € (0 = sin precio) · po: precio original tachado (opcional) · l: enlace al producto
-// o: nota (talla, color…) · img: foto principal · img2: segunda foto (aparece al pasar el ratón)
-// Para fotos propias, sube el archivo al repo y usa su ruta, p. ej. "fotos/jersey.jpg"
-var OWNER = 'de Alberto';
-var YEAR  = 'Navidad 2026';
-var WISHES = [
-  {
-    n:'Le Jaune Longsleeve', p:38, po:47,
-    l:'https://loveobsessed.es/products/le-jaune-crewneck?variant=55979831198082',
-    o:'LOVEOBSESSED',
-    img:'https://loveobsessed.es/cdn/shop/files/4233.png?v=1792076825&width=800', img2:''
-  },
-  {
-    n:'Jeans skater', p:17.99, po:35.99,
-    l:'https://www.bershka.com/es/jeans-skater-c0p229741737.html?colorId=426',
-    o:'Azul lavado · Bershka',
-    img:'https://static.bershka.net/assets/public/dbeb/e733/061f4e4e9fb0/374b9e5298cd/02582236426-a4o/02582236426-a4o.jpg?ts=1787666267947&w=850',
-    img2:'https://static.bershka.net/assets/public/d981/191d/54b843adb7f0/629321dee231/02582236426-a2d/02582236426-a2d.jpg?ts=1791546046894&w=850'
+var REPO='albertoarchive/lista', FILE='wishes.json', KEY='lista-token';
+var OWNER='de Alberto', YEAR='Navidad 2026';
+var EDIT=location.hash==='#editar';
+var TINTS=['#e4e1d8','#dde3ea','#e6dccb','#dfe6dc'];
+var tok='',sha='',WISHES=[],editing=-1;
+try{tok=localStorage.getItem(KEY)||''}catch(e){}
+
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function eur(n){return Number(n).toLocaleString('es-ES',{maximumFractionDigits:2})+' €'}
+function safe(u){return /^https?:\/\//i.test(u||'')?u:''}
+function src(u){return /^https?:\/\//i.test(u||'')||/^[\w./-]+$/.test(u||'')?u:''}
+function num(s){var n=parseFloat(String(s==null?'':s).replace(',','.'));return isNaN(n)?'':n}
+function say(m){$('status').textContent=m||''}
+
+/* ---------- GitHub ---------- */
+function gh(path,opts){
+  opts=opts||{};
+  return fetch('https://api.github.com/repos/'+REPO+path,{method:opts.method||'GET',body:opts.body,headers:{
+    'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json','Content-Type':'application/json'}});
+}
+function b64(str){var b=new TextEncoder().encode(str),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
+function unb64(s){var bin=atob(s.replace(/\s/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
+
+async function load(){
+  if(EDIT&&tok){
+    try{
+      var r=await gh('/contents/'+FILE+'?ref=main&t='+Date.now());
+      if(r.status===401||r.status===403){logout('El token no es válido o no tiene permiso. Genera uno nuevo.')}
+      else if(r.ok){var j=await r.json();sha=j.sha;WISHES=JSON.parse(unb64(j.content));return}
+    }catch(e){}
   }
-];
-// ──────────────────────────────────────────────────
+  try{var r2=await fetch(FILE+'?t='+Date.now(),{cache:'no-store'});WISHES=await r2.json()}
+  catch(e){WISHES=[];say('No se pudo cargar la lista.')}
+}
+async function saveList(msg){
+  var r=await gh('/contents/'+FILE,{method:'PUT',body:JSON.stringify({message:msg,content:b64(JSON.stringify(WISHES,null,2)+'\n'),sha:sha,branch:'main'})});
+  if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,140))}
+  sha=(await r.json()).content.sha;
+}
 
-(function(){
-  var TINTS=['#e4e1d8','#dde3ea','#e6dccb','#dfe6dc'];
-  var $=function(i){return document.getElementById(i)};
-  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function eur(n){return n.toLocaleString('es-ES',{maximumFractionDigits:2})+' €'}
-  function safe(u){return /^https?:\/\//i.test(u||'')?u:''}
-  function src(u){return /^https?:\/\//i.test(u||'')||/^[\w./-]+$/.test(u||'')?u:''}
+/* ---------- datos de un enlace ---------- */
+function findPrice(o){
+  if(!o||typeof o!=='object')return '';
+  if(Array.isArray(o)){for(var i=0;i<o.length;i++){var r=findPrice(o[i]);if(r)return r}return ''}
+  if(o.offers){var of=Array.isArray(o.offers)?o.offers[0]:o.offers;var p=of&&(of.price||of.lowPrice);if(p)return p}
+  for(var k in o){if(o[k]&&typeof o[k]==='object'){var r2=findPrice(o[k]);if(r2)return r2}}
+  return '';
+}
+function parsePage(html,url){
+  var d=new DOMParser().parseFromString(html,'text/html');
+  var m=function(s){var e=d.querySelector(s);return e?(e.getAttribute('content')||''):''};
+  var n=m('meta[property="og:title"]')||d.title||'';
+  var img=m('meta[property="og:image:secure_url"]')||m('meta[property="og:image"]');
+  var price=m('meta[property="product:price:amount"]')||m('meta[property="og:price:amount"]');
+  if(!price){
+    var ss=d.querySelectorAll('script[type="application/ld+json"]');
+    for(var i=0;i<ss.length&&!price;i++){try{price=findPrice(JSON.parse(ss[i].textContent))}catch(e){}}
+  }
+  var orig=m('meta[property="product:original_price:amount"]');
+  var abs='';try{abs=img?new URL(img,url).href:''}catch(e){}
+  return {n:n.trim(),img:abs,p:num(price),po:num(orig)};
+}
+async function fetchMeta(url){
+  try{
+    var r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+    if(r.ok){var meta=parsePage(await r.text(),url);if(meta.n||meta.img)return meta}
+  }catch(e){}
+  try{
+    var r2=await fetch('https://api.microlink.io/?url='+encodeURIComponent(url));
+    var j=await r2.json();
+    if(j.status==='success')return {n:j.data.title||'',img:(j.data.image&&j.data.image.url)||'',p:'',po:''};
+  }catch(e){}
+  return null;
+}
 
-  $('year').textContent=YEAR;$('owner').textContent=OWNER;
-
+/* ---------- pintar ---------- */
+function render(){
   $('grid').innerHTML=WISHES.map(function(w,i){
     var u=safe(w.l),tag=u?'a':'div',a=src(w.img),b=src(w.img2);
-    return '<'+tag+' class="card"'+(u?' href="'+esc(u)+'" target="_blank" rel="noopener"':'')+'>'+
-      '<div class="photo" style="background:'+TINTS[i%TINTS.length]+'">'+esc(w.n.charAt(0).toUpperCase())+
+    var price=(w.po&&w.p?'<s class="old">'+eur(w.po)+'</s>':'')+(w.p?'<span>'+eur(w.p)+'</span>':'');
+    return '<div class="cell"><'+tag+' class="card"'+(u?' href="'+esc(u)+'" target="_blank" rel="noopener"':'')+'>'+
+      '<div class="photo" style="background:'+TINTS[i%TINTS.length]+'">'+esc((w.n||'?').charAt(0).toUpperCase())+
       (a?'<img src="'+esc(a)+'" alt="'+esc(w.n)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
       (b?'<img class="alt" src="'+esc(b)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
-      '</div>'+
-      '<div class="cap"><span class="n">'+esc(w.n)+'</span><span class="p">'+(w.po&&w.p?'<s class="old">'+eur(w.po)+'</s>':'')+(w.p?'<span>'+eur(w.p)+'</span>':'')+'</span></div>'+
+      '</div><div class="cap"><span class="n">'+esc(w.n)+'</span><span class="p">'+price+'</span></div>'+
       (w.o?'<div class="note">'+esc(w.o)+'</div>':'')+
-      '</'+tag+'>';
+      '</'+tag+'><div class="adm"><button class="alt" data-a="edit" data-i="'+i+'">Editar</button><button class="alt" data-a="del" data-i="'+i+'">Eliminar</button></div></div>';
   }).join('');
-})();
+}
+function showMode(){
+  $('login').classList.toggle('hide',!!tok);
+  $('form').classList.toggle('hide',!tok);
+}
+function logout(msg){
+  tok='';try{localStorage.removeItem(KEY)}catch(e){}
+  showMode();say(msg||'');
+}
+function resetForm(){
+  editing=-1;['fl','fn','fp','fo','fi'].forEach(function(i){$(i).value=''});$('ff').value='';
+  $('save').textContent='Añadir a la lista';$('cancel').classList.add('hide');
+}
+
+/* ---------- acciones del modo editar ---------- */
+function wire(){
+  $('tokOk').onclick=function(){
+    var t=$('tok').value.trim();if(!t)return;
+    tok=t;try{localStorage.setItem(KEY,t)}catch(e){}
+    $('tok').value='';showMode();say('Comprobando…');
+    load().then(function(){render();if(tok)say('Listo. Ya puedes añadir regalos.')});
+  };
+  $('logout').onclick=function(){logout('Sesión cerrada en este navegador.')};
+  $('find').onclick=async function(){
+    var u=$('fl').value.trim();if(!safe(u)){say('Pega un enlace que empiece por https://');return}
+    $('find').disabled=true;say('Buscando datos del producto…');
+    var m=await fetchMeta(u);$('find').disabled=false;
+    if(!m){say('No he podido leer esa web. Rellena los datos a mano.');return}
+    if(m.n)$('fn').value=m.n;if(m.img)$('fi').value=m.img;
+    if(m.p!=='')$('fp').value=m.p;if(m.po!=='')$('fo').value=m.po;
+    say('Revisa los datos (sobre todo el precio) y pulsa «Añadir a la lista».');
+  };
+  $('ff').onchange=function(){
+    var f=this.files&&this.files[0];if(!f)return;
+    say('Subiendo foto…');
+    var rd=new FileReader();
+    rd.onload=function(){
+      var im=new Image();
+      im.onload=function(){
+        var k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');
+        c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        var data=c.toDataURL('image/jpeg',.85).split(',')[1],name='fotos/w'+Date.now()+'.jpg';
+        gh('/contents/'+name,{method:'PUT',body:JSON.stringify({message:'Sube foto '+name,content:data,branch:'main'})})
+          .then(function(r){if(!r.ok)throw new Error(r.status);$('fi').value=name;say('Foto subida. Pulsa «Añadir a la lista».')})
+          .catch(function(e){say('No se pudo subir la foto ('+e.message+').')});
+      };
+      im.onerror=function(){say('No se pudo leer esa imagen.')};
+      im.src=rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+  $('save').onclick=async function(){
+    var n=$('fn').value.trim();if(!n){say('Pon un nombre.');return}
+    var o={n:n};
+    var p=num($('fp').value),po=num($('fo').value),l=$('fl').value.trim(),im=$('fi').value.trim();
+    if(p!=='')o.p=p;if(po!=='')o.po=po;if(safe(l))o.l=l;if(im)o.img=im;
+    var prev=editing>=0?WISHES[editing]:null;
+    if(prev){if(prev.o)o.o=prev.o;if(prev.img2&&prev.img===im)o.img2=prev.img2}
+    var copy=WISHES.slice();
+    if(editing>=0)WISHES[editing]=o;else WISHES.push(o);
+    $('save').disabled=true;say('Guardando…');
+    try{await saveList((editing>=0?'Edita ':'Añade ')+n);render();resetForm();say('Guardado. En 1–2 minutos lo verá todo el mundo.')}
+    catch(e){WISHES=copy;say('No se pudo guardar ('+e.message+').')}
+    $('save').disabled=false;
+  };
+  $('cancel').onclick=function(){resetForm();say('')};
+  $('grid').addEventListener('click',async function(e){
+    var b=e.target.closest('button[data-a]');if(!b)return;
+    var i=+b.dataset.i,w=WISHES[i];
+    if(b.dataset.a==='edit'){
+      editing=i;$('fn').value=w.n||'';$('fp').value=w.p!=null?w.p:'';$('fo').value=w.po!=null?w.po:'';
+      $('fl').value=w.l||'';$('fi').value=w.img||'';$('save').textContent='Guardar cambios';$('cancel').classList.remove('hide');
+      $('admin').scrollIntoView({behavior:'smooth'});
+    }else if(b.dataset.a==='del'){
+      if(!b.dataset.sure){b.dataset.sure=1;b.textContent='¿Seguro?';return}
+      var copy=WISHES.slice();WISHES.splice(i,1);say('Eliminando…');
+      try{await saveList('Elimina '+(w.n||'deseo'));render();say('Eliminado.')}
+      catch(err){WISHES=copy;render();say('No se pudo eliminar ('+err.message+').')}
+    }
+  });
+}
+
+/* ---------- inicio ---------- */
+$('year').textContent=YEAR;$('owner').textContent=OWNER;
+if(EDIT){document.body.classList.add('edit');showMode();wire()}
+load().then(render);
 </script>
 </body>
 </html>
