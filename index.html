@@ -80,7 +80,7 @@ var WISHES = [
       (a?'<img src="'+esc(a)+'" alt="'+esc(w.n)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
       (b?'<img class="alt" src="'+esc(b)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
       '</div>'+
-      '<div class="cap"><span class="n">'+esc(w.n)+'</span><span class="p">'+(w.p?eur(w.p):'')+'</span></div>'+
+      '<div class="cap"><span class="n">'+esc(w.n)+'</span><span class="p">'+(w.po&&w.p?'<s class="old">'+eur(w.po)+'</s>':'')+(w.p?'<span>'+eur(w.p)+'</span>':'')+'</span></div>'+
       (w.o?'<div class="note">'+esc(w.o)+'</div>':'')+
       '</'+tag+'>';
   }).join('');
