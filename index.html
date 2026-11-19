@@ -52,7 +52,7 @@ button:disabled{opacity:.5;cursor:wait}
 </head>
 <body>
 <div class="wrap" id="wrap">
-  <div class="top"><span class="pill" id="year"></span><span id="owner"></span></div>
+  <div class="top"><span class="pill" id="year"></span><span><span id="owner"></span><button id="addBtn" class="hide" style="margin-left:14px">+ Añadir</button></span></div>
   <h1>Mi lista de <span>regalos</span></h1>
 
   <section id="admin">
@@ -69,8 +69,9 @@ button:disabled{opacity:.5;cursor:wait}
     </div>
     <div id="form" class="hide">
       <label>Pega el enlace del producto
-        <div class="row"><input id="fl" type="url" placeholder="https://…"><button id="find">Buscar datos</button></div>
+        <div class="row"><input id="fl" type="url" placeholder="https://…"><button id="find">Añadir</button></div>
       </label>
+      <p>O rellena los datos a mano:</p>
       <div class="row">
         <label>Nombre<input id="fn"></label>
         <label>Precio (€)<input id="fp" inputmode="decimal"></label>
@@ -119,7 +120,7 @@ function b64(str){var b=new TextEncoder().encode(str),s='';for(var i=0;i<b.lengt
 function unb64(s){var bin=atob(s.replace(/\s/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
 
 async function load(){
-  if(EDIT&&tok){
+  if(tok){
     try{
       var r=await gh('/contents/'+FILE+'?ref=main&t='+Date.now());
       if(r.status===401||r.status===403){logout('El token no es válido o no tiene permiso. Genera uno nuevo.')}
@@ -208,12 +209,14 @@ function wire(){
   $('logout').onclick=function(){logout('Sesión cerrada en este navegador.')};
   $('find').onclick=async function(){
     var u=$('fl').value.trim();if(!safe(u)){say('Pega un enlace que empiece por https://');return}
-    $('find').disabled=true;say('Buscando datos del producto…');
-    var m=await fetchMeta(u);$('find').disabled=false;
-    if(!m){say('No he podido leer esa web. Rellena los datos a mano.');return}
-    if(m.n)$('fn').value=m.n;if(m.img)$('fi').value=m.img;
-    if(m.p!=='')$('fp').value=m.p;if(m.po!=='')$('fo').value=m.po;
-    say('Revisa los datos (sobre todo el precio) y pulsa «Añadir a la lista».');
+    $('find').disabled=true;say('Leyendo el producto…');
+    var m=await fetchMeta(u);
+    if(!m||!m.n){$('find').disabled=false;say('No he podido leer esa web. Rellena los datos a mano y pulsa «Añadir a la lista».');return}
+    var o={n:m.n,l:u};if(m.p!=='')o.p=m.p;if(m.po!=='')o.po=m.po;if(m.img)o.img=m.img;
+    var copy=WISHES.slice();WISHES.push(o);say('Guardando…');
+    try{await saveList('Añade '+o.n);render();resetForm();say('Añadido'+(o.p===undefined?' (sin precio: pulsa «Editar» en su tarjeta para ponerlo)':'')+'. En 1–2 minutos lo verá todo el mundo.')}
+    catch(e){WISHES=copy;say('No se pudo guardar ('+e.message+').')}
+    $('find').disabled=false;
   };
   $('ff').onchange=function(){
     var f=this.files&&this.files[0];if(!f)return;
@@ -268,7 +271,14 @@ function wire(){
 
 /* ---------- inicio ---------- */
 $('year').textContent=YEAR;$('owner').textContent=OWNER;
-if(EDIT){document.body.classList.add('edit');showMode();wire()}
+showMode();wire();
+if(EDIT)document.body.classList.add('edit');
+if(EDIT||tok)$('addBtn').classList.remove('hide');
+$('addBtn').onclick=function(){
+  document.body.classList.toggle('edit');
+  if(document.body.classList.contains('edit')){showMode();setTimeout(function(){if(tok)$('fl').focus()},50)}
+};
+$('fl').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('find').click()}});
 load().then(render);
 </script>
 </body>
