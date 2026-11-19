@@ -162,6 +162,7 @@ var PROXIES=[
   function(u){return 'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)}
 ];
 async function getText(u){
+  try{var c0=new AbortController(),t0=setTimeout(function(){c0.abort()},5000);var r0=await fetch(u,{signal:c0.signal});clearTimeout(t0);if(r0.ok){var x0=await r0.text();if(x0&&x0.length>50)return x0}}catch(e){}
   for(var i=0;i<PROXIES.length;i++){
     try{
       var ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},12000);
@@ -231,7 +232,38 @@ async function shopifyMeta(url){
   var imgs=(j.images||[]).map(function(i){return absUrl(i,url)});
   return {n:j.title||'',p:price||'',po:(cmp&&cmp>price)?cmp:'',img:imgs[0]||'',img2:imgs[1]||''};
 }
+function cleanName(s){
+  s=decodeURIComponent(s||'').replace(/\.[a-z0-9]{3,4}$/i,'').replace(/[-_]+\d{5,}$/,'').replace(/[-_]+/g,' ').trim();
+  return s;
+}
+function fallbackMeta(url){
+  try{
+    var u=new URL(url),p=u.pathname,last=p.split('/').filter(Boolean).pop()||'';
+    if(/\.(jpe?g|png|webp|avif|gif)$/i.test(p)){
+      var base=u.origin+p;
+      return {n:cleanName(last),img:base,img2:'',p:'',po:'',_part:1};
+    }
+    var m=p.match(/\/products\/([^\/]+)/);
+    if(m)return {n:cleanName(m[1]),img:'',img2:'',p:'',po:'',_part:1};
+  }catch(e){}
+  return null;
+}
 async function fetchMeta(url){
+  var fb=fallbackMeta(url);
+  if(fb&&fb.img){ // enlace directo a una imagen: intenta leer el producto por su nombre
+    try{
+      var u0=new URL(url),h=cleanName(u0.pathname.split('/').pop()).replace(/ /g,'-');
+      var cand=u0.origin+'/products/'+h;
+      var r0=await shopifyMeta(cand);
+      if(r0&&r0.n&&r0.p!=='')return r0;
+    }catch(e){}
+    return fb;
+  }
+  var r=await fetchMeta2(url);
+  if(r&&r.n)return r;
+  return fb;
+}
+async function fetchMeta2(url){
   var sh=null;try{sh=await shopifyMeta(url)}catch(e){}
   if(sh&&sh.n&&sh.p!=='')return sh;
   var g=null,html=await getText(url);
