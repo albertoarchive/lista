@@ -46,6 +46,57 @@ def uniq_imgs(lst):
         seen.add(k); out.append(u)
     return out
 
+
+def turbo(doc):
+    """Decodifica los datos embebidos (React Router / turbo-stream) si existen."""
+    m = re.search(r'streamController\.enqueue\((".*?")\);?</script>', doc, re.S)
+    if not m: return None
+    try: arr = json.loads(json.loads(m.group(1)))
+    except Exception: return None
+    memo = {}
+    def res(i, depth=0):
+        if not isinstance(i, int) or i < 0: return None
+        if i in memo: return memo[i]
+        if depth > 60 or i >= len(arr): return None
+        v = arr[i]
+        if isinstance(v, dict):
+            out = memo[i] = {}
+            for k, x in v.items():
+                if k.startswith("_") and k[1:].isdigit():
+                    kk = arr[int(k[1:])]
+                    out[kk if isinstance(kk, str) else str(kk)] = res(x, depth + 1)
+        elif isinstance(v, list):
+            out = memo[i] = []
+            for x in v: out.append(res(x, depth + 1))
+        else:
+            out = memo[i] = v
+        return out
+    return res(0)
+
+def find_product(o, depth=0):
+    if depth > 40: return None
+    if isinstance(o, dict):
+        if ("title" in o or "name" in o) and ("variants" in o or "priceRange" in o or "images" in o or "media" in o) :
+            return o
+        for v in o.values():
+            r = find_product(v, depth + 1)
+            if r: return r
+    elif isinstance(o, list):
+        for v in o:
+            r = find_product(v, depth + 1)
+            if r: return r
+    return None
+
+def money(x):
+    if isinstance(x, dict):
+        for k in ("amount", "value", "price"):
+            if k in x: return num(x[k])
+        for v in x.values():
+            r = money(v)
+            if r: return r
+        return None
+    return num(x)
+
 def shopify(url):
     u = urllib.parse.urlsplit(url)
     m = re.search(r"/products?/([^/?#]+)", u.path)
