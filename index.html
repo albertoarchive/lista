@@ -29,6 +29,10 @@ a.card:hover{transform:translateY(-4px)}
 .p{font-size:18px;font-weight:800;white-space:nowrap;display:flex;gap:8px;align-items:baseline}
 .old{font-weight:400;font-size:15px;color:var(--muted)}
 .note{font-size:14px;color:#6b6860;padding:0 6px 6px;margin-top:-8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:1.5px solid var(--ink);border-radius:999px;padding:7px 18px;font-weight:600;color:inherit;text-decoration:none}
+.tab.on{background:var(--ink);color:var(--bg)}
+.empty{font-size:20px;color:var(--muted)}
 footer{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 /* modo editar */
 #admin{display:none;background:#fff;border:2px solid var(--ink);border-radius:24px;padding:22px;flex-direction:column;gap:14px}
@@ -53,10 +57,11 @@ button:disabled{opacity:.5;cursor:wait}
 <body>
 <div class="wrap" id="wrap">
   <div class="top"><span class="pill" id="year"></span><span><span id="owner"></span><button id="addBtn" style="margin-left:14px">+ Añadir</button></span></div>
-  <h1>Mi lista de <span>regalos</span></h1>
+  <nav class="tabs" id="tabs"></nav>
+  <h1 id="h1"></h1>
 
   <section id="admin">
-    <h2>Modo editar</h2>
+    <h2 id="adminTitle">Modo editar</h2>
     <div id="login" class="hide">
       <p>Para añadir regalos desde aquí necesitas un token de GitHub. Se guarda solo en este navegador.</p>
       <ol>
@@ -95,8 +100,11 @@ button:disabled{opacity:.5;cursor:wait}
 </div>
 
 <script>
-var REPO='albertoarchive/lista', FILE='wishes.json', KEY='lista-token';
-var OWNER='de Alberto', YEAR='Navidad 2026';
+var REPO='albertoarchive/lista', KEY='lista-token';
+var LISTS=[{id:'alberto',name:'Alberto'},{id:'elena',name:'Elena'},{id:'mama',name:'Mamá'},{id:'papa',name:'Papá'}];
+function curList(){var h=(location.hash||'').replace('#','');return LISTS.filter(function(l){return l.id===h})[0]||LISTS[0]}
+function FILE(){return 'listas/'+curList().id+'.json'}
+var OWNER='', YEAR='Navidad 2026';
 var EDIT=location.hash==='#editar';
 var TINTS=['#e4e1d8','#dde3ea','#e6dccb','#dfe6dc'];
 var tok='',sha='',WISHES=[],editing=-1;
@@ -122,16 +130,16 @@ function unb64(s){var bin=atob(s.replace(/\s/g,'')),u=new Uint8Array(bin.length)
 async function load(){
   if(tok){
     try{
-      var r=await gh('/contents/'+FILE+'?ref=main&t='+Date.now());
+      var r=await gh('/contents/'+FILE()+'?ref=main&t='+Date.now());
       if(r.status===401||r.status===403){logout('El token no es válido o no tiene permiso. Genera uno nuevo.')}
       else if(r.ok){var j=await r.json();sha=j.sha;WISHES=JSON.parse(unb64(j.content));return}
     }catch(e){}
   }
-  try{var r2=await fetch(FILE+'?t='+Date.now(),{cache:'no-store'});WISHES=await r2.json()}
+  try{var r2=await fetch(FILE()+'?t='+Date.now(),{cache:'no-store'});WISHES=await r2.json()}
   catch(e){WISHES=[];say('No se pudo cargar la lista.')}
 }
 async function saveList(msg){
-  var r=await gh('/contents/'+FILE,{method:'PUT',body:JSON.stringify({message:msg,content:b64(JSON.stringify(WISHES,null,2)+'\n'),sha:sha,branch:'main'})});
+  var r=await gh('/contents/'+FILE(),{method:'PUT',body:JSON.stringify({message:msg,content:b64(JSON.stringify(WISHES,null,2)+'\n'),sha:sha,branch:'main'})});
   if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,140))}
   sha=(await r.json()).content.sha;
 }
@@ -243,6 +251,7 @@ async function fetchMeta(url){
 
 /* ---------- pintar ---------- */
 function render(){
+  if(!WISHES.length){$('grid').innerHTML='<p class="empty">Todavía no hay regalos en esta lista.</p>';return}
   $('grid').innerHTML=WISHES.map(function(w,i){
     var u=safe(w.l),tag=u?'a':'div',a=src(w.img),b=src(w.img2);
     var price=(w.po&&w.p?'<s class="old">'+eur(w.po)+'</s>':'')+(w.p?'<span>'+eur(w.p)+'</span>':'');
@@ -254,6 +263,13 @@ function render(){
       (w.o?'<div class="note">'+esc(w.o)+'</div>':'')+
       '</'+tag+'><div class="adm"><button class="alt" data-a="edit" data-i="'+i+'">Editar</button><button class="alt" data-a="del" data-i="'+i+'">Eliminar</button></div></div>';
   }).join('');
+}
+function renderHeader(){
+  var c=curList();
+  $('h1').innerHTML='Lista de <span>'+esc(c.name)+'</span>';
+  document.title='Lista de '+c.name+' · Navidad 2026';
+  $('tabs').innerHTML=LISTS.map(function(l){return '<a class="tab'+(l.id===c.id?' on':'')+'" href="#'+l.id+'">'+esc(l.name)+'</a>'}).join('');
+  $('adminTitle').textContent='Añadir a la lista de '+c.name;
 }
 function showMode(){
   $('login').classList.toggle('hide',!!tok);
@@ -348,6 +364,8 @@ $('addBtn').onclick=function(){
   if(document.body.classList.contains('edit')){showMode();setTimeout(function(){if(tok)$('fl').focus()},50)}
 };
 $('fl').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('find').click()}});
+renderHeader();
+window.addEventListener('hashchange',function(){renderHeader();resetForm();say('');WISHES=[];sha='';load().then(render)});
 load().then(render);
 </script>
 </body>
