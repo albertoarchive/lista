@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista de regalos · Alberto · Navidad 2026</title>
+<meta name="description" content="Ideas de regalo para Navidad 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f2ee;--ink:#151515;--muted:#9a978e}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,sans-serif;line-height:1.4;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:40px 28px 64px;display:flex;flex-direction:column;gap:44px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:15px}
+.pill{border:1.5px solid var(--ink);padding:7px 18px;border-radius:999px;font-weight:600}
+h1{font-size:clamp(48px,10vw,120px);line-height:.92;font-weight:800;letter-spacing:-.035em;max-width:900px}
+h1 span{color:var(--muted)}
+.intro{max-width:520px;font-size:20px;opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}
+.card{display:flex;flex-direction:column;background:#fff;border:2px solid var(--ink);border-radius:24px;padding:14px;gap:14px;color:inherit;text-decoration:none;transition:transform .15s}
+a.card:hover{transform:translateY(-4px)}
+.photo{position:relative;aspect-ratio:1/1;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:84px;font-weight:800;color:rgba(0,0,0,.18)}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .35s}
+.photo img.alt{opacity:0}
+.card:hover .photo img.alt{opacity:1}
+.cap{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:0 6px 6px}
+.n{font-size:22px;font-weight:600;line-height:1.1}
+.p{font-size:18px;font-weight:800;white-space:nowrap}
+.note{font-size:14px;color:#6b6860;padding:0 6px 6px;margin-top:-8px}
+footer{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="pill" id="year"></span><span id="owner"></span></div>
+  <h1>Mi lista de <span>regalos</span></h1>
+  <p class="intro" id="intro"></p>
+  <main class="grid" id="grid"></main>
+  <footer><span>Lista de deseos</span><span>cameno</span></footer>
+</div>
+
+<script>
+// ───────── DATOS: edita solo este bloque ─────────
+// n: nombre · p: precio en € (0 = sin precio) · l: enlace al producto
+// o: nota (talla, color…) · img: foto principal · img2: segunda foto (aparece al pasar el ratón)
+// Para fotos propias, sube el archivo al repo y usa su ruta, p. ej. "fotos/jersey.jpg"
+var OWNER = 'de Alberto';
+var YEAR  = 'Navidad 2026';
+var INTRO = 'Ideas por si quieres acertar. Lo que elijas me hará ilusión.';
+var WISHES = [
+  {
+    n:'Le Jaune Longsleeve', p:38,
+    l:'https://loveobsessed.es/products/le-jaune-crewneck?variant=55979831198082',
+    o:'LOVEOBSESSED',
+    img:'https://loveobsessed.es/cdn/shop/files/4233.png?v=1792076825&width=800', img2:''
+  },
+  {
+    n:'Jeans skater', p:17.99,
+    l:'https://www.bershka.com/es/jeans-skater-c0p229741737.html?colorId=426',
+    o:'Azul lavado · Bershka',
+    img:'https://static.bershka.net/assets/public/dbeb/e733/061f4e4e9fb0/374b9e5298cd/02582236426-a4o/02582236426-a4o.jpg?ts=1787666267947&w=850',
+    img2:'https://static.bershka.net/assets/public/d981/191d/54b843adb7f0/629321dee231/02582236426-a2d/02582236426-a2d.jpg?ts=1791546046894&w=850'
+  }
+];
+// ──────────────────────────────────────────────────
+
+(function(){
+  var TINTS=['#e4e1d8','#dde3ea','#e6dccb','#dfe6dc'];
+  var $=function(i){return document.getElementById(i)};
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function eur(n){return n.toLocaleString('es-ES',{maximumFractionDigits:2})+' €'}
+  function safe(u){return /^https?:\/\//i.test(u||'')?u:''}
+  function src(u){return /^https?:\/\//i.test(u||'')||/^[\w./-]+$/.test(u||'')?u:''}
+
+  $('year').textContent=YEAR;$('owner').textContent=OWNER;$('intro').textContent=INTRO;
+
+  $('grid').innerHTML=WISHES.map(function(w,i){
+    var u=safe(w.l),tag=u?'a':'div',a=src(w.img),b=src(w.img2);
+    return '<'+tag+' class="card"'+(u?' href="'+esc(u)+'" target="_blank" rel="noopener"':'')+'>'+
+      '<div class="photo" style="background:'+TINTS[i%TINTS.length]+'">'+esc(w.n.charAt(0).toUpperCase())+
+      (a?'<img src="'+esc(a)+'" alt="'+esc(w.n)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
+      (b?'<img class="alt" src="'+esc(b)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
+      '</div>'+
+      '<div class="cap"><span class="n">'+esc(w.n)+'</span><span class="p">'+(w.p?eur(w.p):'')+'</span></div>'+
+      (w.o?'<div class="note">'+esc(w.o)+'</div>':'')+
+      '</'+tag+'>';
+  }).join('');
+})();
+</script>
+</body>
+</html>
