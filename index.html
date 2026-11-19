@@ -52,7 +52,7 @@ button:disabled{opacity:.5;cursor:wait}
 </head>
 <body>
 <div class="wrap" id="wrap">
-  <div class="top"><span class="pill" id="year"></span><span><span id="owner"></span><button id="addBtn" class="hide" style="margin-left:14px">+ Añadir</button></span></div>
+  <div class="top"><span class="pill" id="year"></span><span><span id="owner"></span><button id="addBtn" style="margin-left:14px">+ Añadir</button></span></div>
   <h1>Mi lista de <span>regalos</span></h1>
 
   <section id="admin">
@@ -273,7 +273,6 @@ function wire(){
 $('year').textContent=YEAR;$('owner').textContent=OWNER;
 showMode();wire();
 if(EDIT)document.body.classList.add('edit');
-if(EDIT||tok)$('addBtn').classList.remove('hide');
 $('addBtn').onclick=function(){
   document.body.classList.toggle('edit');
   if(document.body.classList.contains('edit')){showMode();setTimeout(function(){if(tok)$('fl').focus()},50)}
