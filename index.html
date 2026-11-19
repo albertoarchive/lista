@@ -85,6 +85,8 @@ button:disabled{opacity:.5;cursor:wait}
       <div class="row">
         <label>Foto (enlace o ruta)<input id="fi"></label>
         <label>…o súbela<input id="ff" type="file" accept="image/*"></label>
+        <label>Segunda foto (enlace o ruta)<input id="fi2"></label>
+        <label>…o súbela<input id="ff2" type="file" accept="image/*"></label>
       </div>
       <div class="row" style="flex-wrap:nowrap">
         <button id="save">Añadir a la lista</button>
@@ -312,7 +314,7 @@ function logout(msg){
   showMode();say(msg||'');
 }
 function resetForm(){
-  editing=-1;['fl','fn','fp','fo','fi'].forEach(function(i){$(i).value=''});$('ff').value='';
+  editing=-1;['fl','fn','fp','fo','fi','fi2'].forEach(function(i){$(i).value=''});$('ff').value='';$('ff2').value='';
   $('save').textContent='Añadir a la lista';$('cancel').classList.add('hide');
 }
 
@@ -336,8 +338,8 @@ function wire(){
     catch(e){WISHES=copy;say('No se pudo guardar ('+e.message+').')}
     $('find').disabled=false;
   };
-  $('ff').onchange=function(){
-    var f=this.files&&this.files[0];if(!f)return;
+  function up(inp,dest,lbl){inp.onchange=function(){
+    var f=inp.files&&this.files[0];if(!f)return;
     say('Subiendo foto…');
     var rd=new FileReader();
     rd.onload=function(){
@@ -348,21 +350,22 @@ function wire(){
         c.getContext('2d').drawImage(im,0,0,c.width,c.height);
         var data=c.toDataURL('image/jpeg',.85).split(',')[1],name='fotos/w'+Date.now()+'.jpg';
         gh('/contents/'+name,{method:'PUT',body:JSON.stringify({message:'Sube foto '+name,content:data,branch:'main'})})
-          .then(function(r){if(!r.ok)throw new Error(r.status);$('fi').value=name;say('Foto subida. Pulsa «Añadir a la lista».')})
+          .then(function(r){if(!r.ok)throw new Error(r.status);$(dest).value=name;say(lbl+' subida. Pulsa «Añadir a la lista».')})
           .catch(function(e){say('No se pudo subir la foto ('+e.message+').')});
       };
       im.onerror=function(){say('No se pudo leer esa imagen.')};
       im.src=rd.result;
     };
     rd.readAsDataURL(f);
-  };
+  };}
+  up($('ff'),'fi','Foto');up($('ff2'),'fi2','Segunda foto');
   $('save').onclick=async function(){
     var n=$('fn').value.trim();if(!n){say('Pon un nombre.');return}
     var o={n:n};
     var p=num($('fp').value),po=num($('fo').value),l=$('fl').value.trim(),im=$('fi').value.trim();
-    if(p!=='')o.p=p;if(po!=='')o.po=po;if(safe(l))o.l=l;if(im)o.img=im;
+    if(p!=='')o.p=p;if(po!=='')o.po=po;if(safe(l))o.l=l;if(im)o.img=im;var im2=$('fi2').value.trim();if(im2)o.img2=im2;
     var prev=editing>=0?WISHES[editing]:null;
-    if(prev){if(prev.o)o.o=prev.o;if(prev.img2&&prev.img===im)o.img2=prev.img2}
+    if(prev){if(prev.o)o.o=prev.o;}
     var copy=WISHES.slice();
     if(editing>=0)WISHES[editing]=o;else WISHES.push(o);
     $('save').disabled=true;say('Guardando…');
@@ -376,7 +379,7 @@ function wire(){
     var i=+b.dataset.i,w=WISHES[i];
     if(b.dataset.a==='edit'){
       editing=i;$('fn').value=w.n||'';$('fp').value=w.p!=null?w.p:'';$('fo').value=w.po!=null?w.po:'';
-      $('fl').value=w.l||'';$('fi').value=w.img||'';$('save').textContent='Guardar cambios';$('cancel').classList.remove('hide');
+      $('fl').value=w.l||'';$('fi').value=w.img||'';$('fi2').value=w.img2||'';$('save').textContent='Guardar cambios';$('cancel').classList.remove('hide');
       $('admin').scrollIntoView({behavior:'smooth'});
     }else if(b.dataset.a==='del'){
       if(!b.dataset.sure){b.dataset.sure=1;b.textContent='¿Seguro?';return}
