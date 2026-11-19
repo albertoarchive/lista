@@ -76,7 +76,8 @@ def turbo(doc):
 def find_product(o, depth=0):
     if depth > 40: return None
     if isinstance(o, dict):
-        if ("title" in o or "name" in o) and ("variants" in o or "priceRange" in o or "images" in o or "media" in o) :
+        vs = o.get("variants")
+        if (isinstance(vs, list) and vs and isinstance(vs[0], dict) and "price" in vs[0]) or "compareAtPriceRange" in o:
             return o
         for v in o.values():
             r = find_product(v, depth + 1)
