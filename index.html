@@ -336,13 +336,13 @@ function wire(){
       if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,120))}
     }catch(e){say('No se pudo enviar ('+e.message+').');$('find').disabled=false;return}
     $('fl').value='';
-    say('Leyendo el producto en el servidor… tarda 1–2 minutos, no cierres la página.');
-    for(var i=0;i<24;i++){
-      await new Promise(function(f){setTimeout(f,10000)});
+    say('Leyendo el producto… unos 15 segundos.');
+    for(var i=0;i<60;i++){
+      await new Promise(function(f){setTimeout(f,3000)});
       if(curList().id!==id)break;
       await load();
       if(WISHES.length>n0){render();say('Añadido. Si falta algo (precio o fotos), pulsa «Editar» en su tarjeta.');break}
-      if(i===23)say('Aún no aparece. Recarga en un minuto o añádelo a mano.');
+      if(i===59)say('Aún no aparece. Recarga en un minuto o añádelo a mano.');
     }
     $('find').disabled=false;
   };
