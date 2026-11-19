@@ -329,13 +329,21 @@ function wire(){
   $('logout').onclick=function(){logout('Sesión cerrada en este navegador.')};
   $('find').onclick=async function(){
     var u=$('fl').value.trim();if(!safe(u)){say('Pega un enlace que empiece por https://');return}
-    $('find').disabled=true;say('Leyendo el producto…');
-    var m=await fetchMeta(u);
-    if(!m||!m.n){$('find').disabled=false;say('No he podido leer esa web. Rellena los datos a mano y pulsa «Añadir a la lista».');return}
-    var o={n:m.n,l:u};if(m.p!=='')o.p=m.p;if(m.po!=='')o.po=m.po;if(m.img)o.img=m.img;if(m.img2)o.img2=m.img2;
-    var copy=WISHES.slice();WISHES.push(o);say('Guardando…');
-    try{await saveList('Añade '+o.n);render();resetForm();say('Añadido'+(o.p===undefined?' (sin precio: pulsa «Editar» en su tarjeta para ponerlo)':'')+'. En 1–2 minutos lo verá todo el mundo.')}
-    catch(e){WISHES=copy;say('No se pudo guardar ('+e.message+').')}
+    $('find').disabled=true;say('Enviando enlace…');
+    var id=curList().id,name='pedidos/'+Date.now()+'.json',n0=WISHES.length;
+    try{
+      var r=await gh('/contents/'+name,{method:'PUT',body:JSON.stringify({message:'Pedido: '+u.slice(0,80),content:b64(JSON.stringify({lista:id,url:u})),branch:'main'})});
+      if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,120))}
+    }catch(e){say('No se pudo enviar ('+e.message+').');$('find').disabled=false;return}
+    $('fl').value='';
+    say('Leyendo el producto en el servidor… tarda 1–2 minutos, no cierres la página.');
+    for(var i=0;i<24;i++){
+      await new Promise(function(f){setTimeout(f,10000)});
+      if(curList().id!==id)break;
+      await load();
+      if(WISHES.length>n0){render();say('Añadido. Si falta algo (precio o fotos), pulsa «Editar» en su tarjeta.');break}
+      if(i===23)say('Aún no aparece. Recarga en un minuto o añádelo a mano.');
+    }
     $('find').disabled=false;
   };
   function up(inp,dest,lbl){inp.onchange=function(){
