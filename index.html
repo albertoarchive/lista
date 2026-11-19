@@ -25,7 +25,8 @@ a.card:hover{transform:translateY(-4px)}
 .card:hover .photo img.alt{opacity:1}
 .cap{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:0 6px 6px}
 .n{font-size:22px;font-weight:600;line-height:1.1}
-.p{font-size:18px;font-weight:800;white-space:nowrap}
+.p{font-size:18px;font-weight:800;white-space:nowrap;display:flex;gap:8px;align-items:baseline}
+.old{font-weight:400;font-size:15px;color:var(--muted)}
 .note{font-size:14px;color:#6b6860;padding:0 6px 6px;margin-top:-8px}
 footer{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 </style>
@@ -40,20 +41,20 @@ footer{font-size:13px;color:var(--muted);display:flex;justify-content:space-betw
 
 <script>
 // ───────── DATOS: edita solo este bloque ─────────
-// n: nombre · p: precio en € (0 = sin precio) · l: enlace al producto
+// n: nombre · p: precio actual en € (0 = sin precio) · po: precio original tachado (opcional) · l: enlace al producto
 // o: nota (talla, color…) · img: foto principal · img2: segunda foto (aparece al pasar el ratón)
 // Para fotos propias, sube el archivo al repo y usa su ruta, p. ej. "fotos/jersey.jpg"
 var OWNER = 'de Alberto';
 var YEAR  = 'Navidad 2026';
 var WISHES = [
   {
-    n:'Le Jaune Longsleeve', p:38,
+    n:'Le Jaune Longsleeve', p:38, po:47,
     l:'https://loveobsessed.es/products/le-jaune-crewneck?variant=55979831198082',
     o:'LOVEOBSESSED',
     img:'https://loveobsessed.es/cdn/shop/files/4233.png?v=1792076825&width=800', img2:''
   },
   {
-    n:'Jeans skater', p:17.99,
+    n:'Jeans skater', p:17.99, po:35.99,
     l:'https://www.bershka.com/es/jeans-skater-c0p229741737.html?colorId=426',
     o:'Azul lavado · Bershka',
     img:'https://static.bershka.net/assets/public/dbeb/e733/061f4e4e9fb0/374b9e5298cd/02582236426-a4o/02582236426-a4o.jpg?ts=1787666267947&w=850',
