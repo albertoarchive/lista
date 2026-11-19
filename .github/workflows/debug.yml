@@ -6,9 +6,12 @@ jobs:
     steps:
       - run: |
           curl -sL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15" "https://emestudios.com/es/es/product/master-fawn-knit-sweater" -o p.html
-          wc -c p.html
-          echo ---PRICE; grep -o '.\{120\}89,00.\{60\}' p.html | head -5
-          echo ---PRICEJSON; grep -o '"price[^,}]\{0,60\}' p.html | head -10
-          echo ---COMPARE; grep -io '.\{0,80\}compare.\{0,80\}' p.html | head -5
-          echo ---IMGS; grep -o 'cdn.shopify.com/s/files/[^"'"'"' ]*master-fawn[^"'"'"' ]*' p.html | sort -u | head -8
-          echo ---LD; grep -c 'ld+json' p.html
+          python3 - <<'PY'
+          import re,json
+          d=open('p.html',encoding='utf-8',errors='replace').read()
+          ch=re.findall(r'streamController\.enqueue\((".*?")\);?</script>',d,re.S)
+          print('chunks',len(ch), [len(c) for c in ch][:5])
+          for c in ch[:3]:
+              s=json.loads(c); print(s[:300].replace('\n',' ')); print('....')
+          i=d.find('"price"'); print(d[i-200:i+300])
+          PY
