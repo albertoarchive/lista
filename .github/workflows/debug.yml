@@ -1,0 +1,14 @@
+name: debug
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15" "https://emestudios.com/es/es/product/master-fawn-knit-sweater" -o p.html
+          wc -c p.html
+          echo ---PRICE; grep -o '.\{120\}89,00.\{60\}' p.html | head -5
+          echo ---PRICEJSON; grep -o '"price[^,}]\{0,60\}' p.html | head -10
+          echo ---COMPARE; grep -io '.\{0,80\}compare.\{0,80\}' p.html | head -5
+          echo ---IMGS; grep -o 'cdn.shopify.com/s/files/[^"'"'"' ]*master-fawn[^"'"'"' ]*' p.html | sort -u | head -8
+          echo ---LD; grep -c 'ld+json' p.html
