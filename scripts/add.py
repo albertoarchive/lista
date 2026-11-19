@@ -40,6 +40,7 @@ def img_key(u):
 def uniq_imgs(lst):
     out, seen = [], set()
     for u in lst:
+        u = (u or '').rstrip('\\')
         if not u or not u.startswith("http"): continue
         k = img_key(u)
         if k in seen: continue
@@ -147,6 +148,16 @@ def page(url):
     doc = get(url)
     n = p = po = None
     imgs = []
+    try:
+        pr0 = find_product(turbo(doc))
+    except Exception:
+        pr0 = None
+    if pr0 and pr0.get("title"):
+        a = money(pr0.get("priceRange")); b = money(pr0.get("compareAtPriceRange"))
+        ims = [i.get("url", "") for i in (pr0.get("images") or pr0.get("media") or []) if isinstance(i, dict)]
+        ims = uniq_imgs([absu(i, url) for i in ims])
+        return {"n": pr0["title"], "p": a, "po": b if (a and b and b > a) else None,
+                "img": ims[0] if ims else "", "img2": ims[1] if len(ims) > 1 else ""}
     for blk in re.findall(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', doc, re.S | re.I):
         try: data = json.loads(blk)
         except Exception: continue
