@@ -1,14 +1,7 @@
-# Listas de regalos · Navidad 2026
+# Lista de regalos · Navidad 2026
 
-Web estática con cuatro listas independientes: Alberto, Elena, Mamá y Papá.
+Cuatro listas (#alberto, #elena, #mama, #papa). Cualquiera con el enlace puede añadir, editar y quitar regalos en su lista.
 
-- Cada lista está en su archivo: `listas/alberto.json`, `listas/elena.json`, `listas/mama.json`, `listas/papa.json`.
-- Se accede con `#alberto`, `#elena`, `#mama` o `#papa` al final de la dirección, o con las pestañas de arriba.
-
-## Añadir regalos
-
-El botón **+ Añadir** guarda el regalo en la lista que está abierta. Necesita un token de GitHub con permiso *Contents: Read and write* sobre este repo; se guarda solo en el navegador de quien lo pega.
-
-## Editar a mano
-
-También puedes editar el archivo de la lista en GitHub. Campos: `n` nombre, `p` precio, `po` precio original (tachado), `l` enlace, `o` nota, `img` foto, `img2` segunda foto.
+- **Web**: HTML estático + una función de Netlify (`netlify/functions/lista.js`) que guarda los cambios en este repo.
+- **Variable de Netlify**: `GH_TOKEN` = token de GitHub fine-grained, solo repo `lista`, permiso *Contents: Read and write*.
+- **Añadir por enlace**: la función deja un pedido en `pedidos/` y la Acción `add.yml` (`scripts/add.py`) lee la web del producto y lo añade.
