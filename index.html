@@ -62,7 +62,17 @@ button:disabled{opacity:.5;cursor:wait}
 
   <section id="admin">
     <h2 id="adminTitle">Modo editar</h2>
-    <div id="form">
+    <div id="login" class="hide">
+      <p>Para añadir regalos desde aquí necesitas un token de GitHub. Se guarda solo en este navegador.</p>
+      <ol>
+        <li>Abre <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>.</li>
+        <li>En <b>Repository access</b> elige <i>Only select repositories</i> y marca <b>lista</b>.</li>
+        <li>En <b>Permissions → Repository permissions</b> pon <b>Contents: Read and write</b>.</li>
+        <li>Pulsa <i>Generate token</i>, copia el token y pégalo aquí.</li>
+      </ol>
+      <div class="row"><input id="tok" type="password" placeholder="github_pat_…" autocomplete="off"><button id="tokOk">Guardar token</button></div>
+    </div>
+    <div id="form" class="hide">
       <label>Pega el enlace del producto
         <div class="row"><input id="fl" type="url" placeholder="https://…"><button id="find">Añadir</button></div>
       </label>
@@ -91,14 +101,16 @@ button:disabled{opacity:.5;cursor:wait}
 </div>
 
 <script>
-
+var REPO='albertoarchive/lista', KEY='lista-token';
 var LISTS=[{id:'alberto',name:'Alberto'},{id:'elena',name:'Elena'},{id:'mama',name:'Mamá'},{id:'papa',name:'Papá'}];
 function curList(){var h=(location.hash||'').replace('#','');return LISTS.filter(function(l){return l.id===h})[0]||LISTS[0]}
 function FILE(){return 'listas/'+curList().id+'.json'}
 var OWNER='', YEAR='Navidad 2026';
 var EDIT=location.hash==='#editar';
 var TINTS=['#e4e1d8','#dde3ea','#e6dccb','#dfe6dc'];
-var WISHES=[],editing=-1;
+var tok='',sha='',WISHES=[],editing=-1;
+var PARTS=[];/*TOKEN*/
+tok=PARTS.join('');
 
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -108,21 +120,167 @@ function src(u){return /^https?:\/\//i.test(u||'')||/^[\w./-]+$/.test(u||'')?u:'
 function num(s){return price2num(s)}
 function say(m){$('status').textContent=m||''}
 
-/* ---------- servidor ---------- */
-var API='/.netlify/functions/lista';
-async function api(body){
-  var r;
-  try{r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
-  catch(e){throw new Error('sin conexión')}
-  var j={};try{j=await r.json()}catch(e){}
-  if(r.status===404||r.status===405)throw new Error('esta dirección no puede guardar cambios: abre la lista desde la dirección de Netlify (…netlify.app), no desde github.io');
-  if(!r.ok)throw new Error(j.error||('error '+r.status));
-  return j;
+/* ---------- GitHub ---------- */
+function gh(path,opts){
+  opts=opts||{};
+  return fetch('https://api.github.com/repos/'+REPO+path,{method:opts.method||'GET',body:opts.body,headers:{
+    'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json','Content-Type':'application/json'}});
 }
+function b64(str){var b=new TextEncoder().encode(str),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
+function unb64(s){var bin=atob(s.replace(/\s/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
+
 async function load(){
-  try{var r=await fetch(API+'?lista='+curList().id+'&t='+Date.now(),{cache:'no-store'});if(r.ok){WISHES=await r.json();return}}catch(e){}
+  if(tok){
+    try{
+      var r=await gh('/contents/'+FILE()+'?ref=main&t='+Date.now());
+      if(r.status===401||r.status===403){say('El acceso para guardar no es válido.')}
+      else if(r.ok){var j=await r.json();sha=j.sha;WISHES=JSON.parse(unb64(j.content));return}
+    }catch(e){}
+  }
   try{var r2=await fetch(FILE()+'?t='+Date.now(),{cache:'no-store'});WISHES=await r2.json()}
   catch(e){WISHES=[];say('No se pudo cargar la lista.')}
+}
+async function saveList(msg){
+  var r=await gh('/contents/'+FILE(),{method:'PUT',body:JSON.stringify({message:msg,content:b64(JSON.stringify(WISHES,null,2)+'\n'),sha:sha,branch:'main'})});
+  if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,140))}
+  sha=(await r.json()).content.sha;
+}
+
+/* ---------- datos de un enlace ---------- */
+function price2num(s){
+  if(s==null||s==='')return '';
+  if(typeof s==='number')return s;
+  s=String(s).replace(/[^\d.,]/g,'');
+  if(!s)return '';
+  var c=s.lastIndexOf(','),d=s.lastIndexOf('.');
+  if(c>-1&&d>-1){s=c>d?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}
+  else if(c>-1){s=/^\d{1,3}(,\d{3})+$/.test(s)?s.replace(/,/g,''):s.replace(',','.')}
+  else if(d>-1){if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'')}
+  var n=parseFloat(s);return isNaN(n)?'':n;
+}
+var PROXIES=[
+  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
+  function(u){return 'https://corsproxy.io/?url='+encodeURIComponent(u)},
+  function(u){return 'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)}
+];
+async function getText(u){
+  try{var c0=new AbortController(),t0=setTimeout(function(){c0.abort()},5000);var r0=await fetch(u,{signal:c0.signal});clearTimeout(t0);if(r0.ok){var x0=await r0.text();if(x0&&x0.length>50)return x0}}catch(e){}
+  for(var i=0;i<PROXIES.length;i++){
+    try{
+      var ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},12000);
+      var r=await fetch(PROXIES[i](u),{signal:ctl.signal});clearTimeout(t);
+      if(r.ok){var x=await r.text();if(x&&x.length>50)return x}
+    }catch(e){}
+  }
+  return '';
+}
+function absUrl(u,base){try{return u?new URL(u.indexOf('//')===0?'https:'+u:u,base).href:''}catch(e){return ''}}
+function findType(o,type){
+  if(!o||typeof o!=='object')return null;
+  if(Array.isArray(o)){for(var i=0;i<o.length;i++){var r=findType(o[i],type);if(r)return r}return null}
+  var t=o['@type'];if(t===type||(Array.isArray(t)&&t.indexOf(type)>-1))return o;
+  for(var k in o){if(o[k]&&typeof o[k]==='object'){var r2=findType(o[k],type);if(r2)return r2}}
+  return null;
+}
+function imgList(im){
+  if(!im)return [];
+  if(typeof im==='string')return [im];
+  if(Array.isArray(im))return im.map(function(x){return typeof x==='string'?x:(x&&x.url)||''}).filter(Boolean);
+  return im.url?[im.url]:[];
+}
+function parsePage(html,url){
+  var d=new DOMParser().parseFromString(html,'text/html');
+  var m=function(s){var e=d.querySelector(s);return e?(e.getAttribute('content')||''):''};
+  var ld=[];d.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){try{ld.push(JSON.parse(s.textContent))}catch(e){}});
+  var prod=findType(ld,'Product');
+  var n=(prod&&prod.name)||m('meta[property="og:title"]')||d.title||'';
+  var site=m('meta[property="og:site_name"]');
+  if(site){n=n.replace(new RegExp('\\s*[|\\-–—·]\\s*'+site.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*®?\\s*$','i'),'')}
+  var imgs=prod?imgList(prod.image):[];
+  var ogi=m('meta[property="og:image:secure_url"]')||m('meta[property="og:image"]');
+  if(ogi)imgs.unshift(ogi);
+  imgs=imgs.map(function(x){return absUrl(x,url)}).filter(function(x,i,a){return x&&a.indexOf(x)===i});
+  var price='',orig='';
+  if(prod&&prod.offers){
+    var of=Array.isArray(prod.offers)?prod.offers[0]:prod.offers;
+    if(of){
+      price=price2num(of.price!=null&&of.price!==''?of.price:of.lowPrice);
+      var specs=of.priceSpecification?(Array.isArray(of.priceSpecification)?of.priceSpecification:[of.priceSpecification]):[];
+      specs.forEach(function(sp){var t=String(sp.priceType||'');if(/list|strike|original|msrp/i.test(t)&&sp.price!=null)orig=price2num(sp.price)});
+    }
+  }
+  if(price==='')price=price2num(m('meta[property="product:price:amount"]')||m('meta[property="og:price:amount"]')||m('meta[property="product:sale_price:amount"]')||m('meta[itemprop="price"]'));
+  if(orig==='')orig=price2num(m('meta[property="product:original_price:amount"]')||m('meta[property="og:price:standard_amount"]'));
+  if(orig===''&&price!==''){
+    var els=d.querySelectorAll('s,del,strike,[class*="compare"],[class*="old-price"],[class*="price--old"],[class*="was-price"],[class*="original"],[class*="strike"]');
+    for(var i=0;i<els.length;i++){
+      var t=(els[i].textContent||'').trim();if(!t||t.length>24)continue;
+      var v=price2num(t);if(v!==''&&v>price){orig=v;break}
+    }
+  }
+  if(orig!==''&&price!==''&&orig<=price)orig='';
+  return {n:n.trim(),img:imgs[0]||'',img2:imgs[1]||'',p:price,po:orig};
+}
+async function shopifyMeta(url){
+  var U;try{U=new URL(url)}catch(e){return null}
+  var mm=U.pathname.match(/^(.*\/products\/[^\/?#]+)/);if(!mm)return null;
+  var txt=await getText(U.origin+mm[1]+'.js');
+  if(!txt||txt.charAt(0)!=='{')return null;
+  var j;try{j=JSON.parse(txt)}catch(e){return null}
+  var vid=U.searchParams.get('variant'),v=null;
+  if(j.variants&&j.variants.length){v=j.variants.filter(function(x){return String(x.id)===vid})[0]||j.variants[0]}
+  var price=(v?v.price:j.price)/100,cmp=(v?v.compare_at_price:j.compare_at_price);
+  cmp=cmp?cmp/100:'';
+  var imgs=(j.images||[]).map(function(i){return absUrl(i,url)});
+  return {n:j.title||'',p:price||'',po:(cmp&&cmp>price)?cmp:'',img:imgs[0]||'',img2:imgs[1]||''};
+}
+function cleanName(s){
+  s=decodeURIComponent(s||'').replace(/\.[a-z0-9]{3,4}$/i,'').replace(/[-_]+\d{5,}$/,'').replace(/[-_]+/g,' ').trim();
+  return s;
+}
+function fallbackMeta(url){
+  try{
+    var u=new URL(url),p=u.pathname,last=p.split('/').filter(Boolean).pop()||'';
+    if(/\.(jpe?g|png|webp|avif|gif)$/i.test(p)){
+      var base=u.origin+p;
+      return {n:cleanName(last),img:base,img2:'',p:'',po:'',_part:1};
+    }
+    var m=p.match(/\/products\/([^\/]+)/);
+    if(m)return {n:cleanName(m[1]),img:'',img2:'',p:'',po:'',_part:1};
+  }catch(e){}
+  return null;
+}
+async function fetchMeta(url){
+  var fb=fallbackMeta(url);
+  if(fb&&fb.img){ // enlace directo a una imagen: intenta leer el producto por su nombre
+    try{
+      var u0=new URL(url),h=cleanName(u0.pathname.split('/').pop()).replace(/ /g,'-');
+      var cand=u0.origin+'/products/'+h;
+      var r0=await shopifyMeta(cand);
+      if(r0&&r0.n&&r0.p!=='')return r0;
+    }catch(e){}
+    return fb;
+  }
+  var r=await fetchMeta2(url);
+  if(r&&r.n)return r;
+  return fb;
+}
+async function fetchMeta2(url){
+  var sh=null;try{sh=await shopifyMeta(url)}catch(e){}
+  if(sh&&sh.n&&sh.p!=='')return sh;
+  var g=null,html=await getText(url);
+  if(html){try{g=parsePage(html,url)}catch(e){}}
+  if(g&&(g.n||g.img)){
+    if(sh){for(var k in sh){if((g[k]===''||g[k]==null)&&sh[k])g[k]=sh[k]}}
+    return g;
+  }
+  if(sh&&sh.n)return sh;
+  try{
+    var r2=await fetch('https://api.microlink.io/?url='+encodeURIComponent(url));
+    var j=await r2.json();
+    if(j.status==='success')return {n:j.data.title||'',img:(j.data.image&&j.data.image.url)||'',img2:'',p:'',po:''};
+  }catch(e){}
+  return null;
 }
 
 /* ---------- pintar ---------- */
@@ -147,6 +305,15 @@ function renderHeader(){
   $('tabs').innerHTML=LISTS.map(function(l){return '<a class="tab'+(l.id===c.id?' on':'')+'" href="#'+l.id+'">'+esc(l.name)+'</a>'}).join('');
   $('adminTitle').textContent='Añadir a la lista de '+c.name;
 }
+function showMode(){
+  $('login').classList.add('hide');
+  $('form').classList.remove('hide');
+  if(!tok)say('Falta configurar el acceso para guardar.');
+}
+function logout(msg){
+  tok='';try{localStorage.removeItem(KEY)}catch(e){}
+  showMode();say(msg||'');
+}
 function resetForm(){
   editing=-1;['fl','fn','fp','fo','fi','fi2'].forEach(function(i){$(i).value=''});$('ff').value='';$('ff2').value='';
   $('save').textContent='Añadir a la lista';$('cancel').classList.add('hide');
@@ -154,12 +321,20 @@ function resetForm(){
 
 /* ---------- acciones del modo editar ---------- */
 function wire(){
+  $('tokOk').onclick=function(){
+    var t=$('tok').value.trim();if(!t)return;
+    tok=t;try{localStorage.setItem(KEY,t)}catch(e){}
+    $('tok').value='';showMode();say('Comprobando…');
+    load().then(function(){render();if(tok)say('Listo. Ya puedes añadir regalos.')});
+  };
   $('find').onclick=async function(){
     var u=$('fl').value.trim();if(!safe(u)){say('Pega un enlace que empiece por https://');return}
     $('find').disabled=true;say('Enviando enlace…');
-    var id=curList().id,n0=WISHES.length;
-    try{await api({op:'link',lista:id,url:u})}
-    catch(e){say('No se pudo enviar ('+e.message+').');$('find').disabled=false;return}
+    var id=curList().id,name='pedidos/'+Date.now()+'.json',n0=WISHES.length;
+    try{
+      var r=await gh('/contents/'+name,{method:'PUT',body:JSON.stringify({message:'Pedido: '+u.slice(0,80),content:b64(JSON.stringify({lista:id,url:u})),branch:'main'})});
+      if(!r.ok){var t=await r.text();throw new Error(r.status+' '+t.slice(0,120))}
+    }catch(e){say('No se pudo enviar ('+e.message+').');$('find').disabled=false;return}
     $('fl').value='';
     say('Leyendo el producto… unos 15 segundos.');
     for(var i=0;i<60;i++){
@@ -181,9 +356,9 @@ function wire(){
         var k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');
         c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
         c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-        var data=c.toDataURL('image/jpeg',.85).split(',')[1];
-        api({op:'photo',data:data})
-          .then(function(r){$(dest).value=r.path;say(lbl+' subida.')})
+        var data=c.toDataURL('image/jpeg',.85).split(',')[1],name='fotos/w'+Date.now()+'.jpg';
+        gh('/contents/'+name,{method:'PUT',body:JSON.stringify({message:'Sube foto '+name,content:data,branch:'main'})})
+          .then(function(r){if(!r.ok)throw new Error(r.status);$(dest).value=name;say(lbl+' subida. Pulsa «Añadir a la lista».')})
           .catch(function(e){say('No se pudo subir la foto ('+e.message+').')});
       };
       im.onerror=function(){say('No se pudo leer esa imagen.')};
@@ -199,11 +374,11 @@ function wire(){
     if(p!=='')o.p=p;if(po!=='')o.po=po;if(safe(l))o.l=l;if(im)o.img=im;var im2=$('fi2').value.trim();if(im2)o.img2=im2;
     var prev=editing>=0?WISHES[editing]:null;
     if(prev){if(prev.o)o.o=prev.o;}
+    var copy=WISHES.slice();
+    if(editing>=0)WISHES[editing]=o;else WISHES.push(o);
     $('save').disabled=true;say('Guardando…');
-    try{
-      WISHES=editing>=0?await api({op:'update',lista:curList().id,index:editing,name:prev.n,item:o}):await api({op:'add',lista:curList().id,item:o});
-      render();resetForm();say('Guardado.');
-    }catch(e){say('No se pudo guardar ('+e.message+').')}
+    try{await saveList((editing>=0?'Edita ':'Añade ')+n);render();resetForm();say('Guardado. En 1–2 minutos lo verá todo el mundo.')}
+    catch(e){WISHES=copy;say('No se pudo guardar ('+e.message+').')}
     $('save').disabled=false;
   };
   $('cancel').onclick=function(){resetForm();say('')};
@@ -216,24 +391,24 @@ function wire(){
       $('admin').scrollIntoView({behavior:'smooth'});
     }else if(b.dataset.a==='del'){
       if(!b.dataset.sure){b.dataset.sure=1;b.textContent='¿Seguro?';return}
-      say('Eliminando…');
-      try{WISHES=await api({op:'remove',lista:curList().id,index:i,name:w.n});render();say('Eliminado.')}
-      catch(err){say('No se pudo eliminar ('+err.message+').')}
+      var copy=WISHES.slice();WISHES.splice(i,1);say('Eliminando…');
+      try{await saveList('Elimina '+(w.n||'deseo'));render();say('Eliminado.')}
+      catch(err){WISHES=copy;render();say('No se pudo eliminar ('+err.message+').')}
     }
   });
 }
 
 /* ---------- inicio ---------- */
 $('year').textContent=YEAR;$('owner').textContent=OWNER;
-wire();
+showMode();wire();
 if(EDIT)document.body.classList.add('edit');
 $('addBtn').onclick=function(){
   document.body.classList.toggle('edit');
-  if(document.body.classList.contains('edit')){setTimeout(function(){$('fl').focus()},50)}
+  if(document.body.classList.contains('edit')){showMode();setTimeout(function(){if(tok)$('fl').focus()},50)}
 };
 $('fl').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('find').click()}});
 renderHeader();
-window.addEventListener('hashchange',function(){renderHeader();resetForm();say('');WISHES=[];load().then(render)});
+window.addEventListener('hashchange',function(){renderHeader();resetForm();say('');WISHES=[];sha='';load().then(render)});
 load().then(render);
 </script>
 </body>
