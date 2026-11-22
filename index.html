@@ -115,6 +115,7 @@ async function api(body){
   try{r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
   catch(e){throw new Error('sin conexión')}
   var j={};try{j=await r.json()}catch(e){}
+  if(r.status===404||r.status===405)throw new Error('esta dirección no puede guardar cambios: abre la lista desde la dirección de Netlify (…netlify.app), no desde github.io');
   if(!r.ok)throw new Error(j.error||('error '+r.status));
   return j;
 }
